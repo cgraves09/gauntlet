@@ -1,0 +1,51 @@
+# The Gauntlet — Dockerized Agent Training
+#
+# Usage:
+#   1. Copy .env.example to .env and add your Anthropic API key
+#   2. Put your agent workspace in ./workspace/
+#   3. Put your task suite in ./tasks/
+#   4. docker compose up -d
+#   5. docker compose exec gauntlet ./scripts/run-suite.sh --profile gauntlet
+#
+# Or run the meta-agent optimization loop:
+#   claude --append-system-prompt-file gauntlet-persona.md
+#   "Read program.md. The agent is in the gauntlet container. Start optimizing."
+
+services:
+  gauntlet:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gauntlet
+    restart: unless-stopped
+    ports:
+      - "${GAUNTLET_PORT:-19701}:18789"
+    env_file:
+      - .env
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+    volumes:
+      # Agent workspace — the DNA being optimized (mutable)
+      - ./workspace:/home/node/.openclaw/workspace
+
+      # OpenClaw config — controls agent model, tools, skills
+      - ./openclaw.json:/home/node/.openclaw/openclaw.json
+
+      # Skills — agent's skill definitions (mutable)
+      - ./workspace/skills:/home/node/.openclaw/skills/gauntlet-skills
+
+      # Tasks — the fixed benchmark (read-only inside container)
+      - ./tasks:/gauntlet/tasks:ro
+
+      # Results — scores and responses come out here
+      - ./results:/gauntlet/results
+
+      # Scripts — override scripts without rebuild
+      - ./scripts:/gauntlet/scripts
+
+    healthcheck:
+      test: ["CMD", "openclaw", "health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s

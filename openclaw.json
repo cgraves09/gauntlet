@@ -1,0 +1,87 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.3.24"
+  },
+  "auth": {
+    "profiles": {
+      "anthropic:default": {
+        "provider": "anthropic",
+        "mode": "token"
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic/claude-sonnet-4-6",
+        "fallbacks": ["anthropic/claude-opus-4-6"]
+      },
+      "models": {
+        "anthropic/claude-sonnet-4-6": {},
+        "anthropic/claude-opus-4-6": {}
+      },
+      "workspace": "/home/node/.openclaw/workspace",
+      "heartbeat": { "every": "0m" },
+      "subagents": {
+        "maxConcurrent": 4,
+        "model": "anthropic/claude-sonnet-4-6",
+        "runTimeoutSeconds": 300
+      }
+    },
+    "list": []
+  },
+  "tools": {
+    "web": {
+      "search": { "enabled": true, "provider": "brave" },
+      "fetch": { "enabled": true }
+    },
+    "exec": {
+      "host": "gateway",
+      "security": "full"
+    }
+  },
+  "commands": {
+    "native": true,
+    "nativeSkills": true,
+    "restart": true
+  },
+  "session": {
+    "maintenance": {
+      "mode": "enforce",
+      "maxDiskBytes": 104857600,
+      "highWaterBytes": 83886080
+    }
+  },
+  "hooks": {
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "session-memory": { "enabled": true },
+        "boot-md": { "enabled": true }
+      }
+    }
+  },
+  "channels": {},
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "lan",
+    "auth": { "mode": "none" }
+  },
+  "skills": {
+    "load": {
+      "extraDirs": ["/home/node/.openclaw/skills/gauntlet-skills"],
+      "watch": true
+    }
+  },
+  "plugins": {
+    "entries": {
+      "brave": {
+        "enabled": true,
+        "config": {
+          "webSearch": { "apiKey": "${BRAVE_SEARCH_API_KEY}" }
+        }
+      }
+    }
+  }
+}

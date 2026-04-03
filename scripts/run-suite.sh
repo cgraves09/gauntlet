@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
 # Gauntlet — Run full task suite against the agent
 #
-# Usage: ./scripts/run-suite.sh [--profile NAME] [--model MODEL]
+# Usage:
+#   Local:  ./scripts/run-suite.sh [--profile NAME]
+#   Docker: docker compose exec gauntlet /gauntlet/scripts/run-suite.sh
 #
-# Defaults:
-#   Profile: gauntlet
-#   Model: (uses profile default from openclaw.json)
+# Inside Docker, no --profile is needed (gateway is local).
+# Outside Docker, defaults to --profile gauntlet.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-GAUNTLET_DIR="$(dirname "$SCRIPT_DIR")"
-PROFILE="${1:-gauntlet}"
+
+# Detect environment: Docker (/gauntlet exists) or local
+if [ -d "/gauntlet/tasks" ]; then
+  GAUNTLET_DIR="/gauntlet"
+  OC_CMD="openclaw"
+else
+  GAUNTLET_DIR="$(dirname "$SCRIPT_DIR")"
+  PROFILE="${1:-gauntlet}"
+  OC_CMD="openclaw --profile $PROFILE"
+fi
+
 RESULTS_DIR="$GAUNTLET_DIR/results"
 LATEST_DIR="$RESULTS_DIR/latest"
 TASKS_DIR="$GAUNTLET_DIR/tasks"
@@ -19,13 +29,11 @@ TASKS_DIR="$GAUNTLET_DIR/tasks"
 # Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo "================================================"
 echo "  THE GAUNTLET — Task Suite Runner"
-echo "  Profile: $PROFILE"
-echo "  Tasks:   $TASKS_DIR"
+echo "  Tasks: $TASKS_DIR"
 echo "================================================"
 echo ""
 
@@ -60,12 +68,12 @@ for task_name in "${TASKS[@]}"; do
   INSTRUCTION=$(cat "$TASK_DIR/instruction.md")
 
   # Reset session for clean slate
-  openclaw --profile "$PROFILE" gateway call sessions.reset \
+  $OC_CMD gateway call sessions.reset \
     --params "{\"key\":\"gauntlet:$task_name\"}" \
     >/dev/null 2>&1 || true
 
   # Send task to agent via gateway
-  RESPONSE=$(openclaw --profile "$PROFILE" agent \
+  RESPONSE=$($OC_CMD agent \
     --message "$INSTRUCTION" \
     --json 2>/dev/null || echo '{"error": "agent call failed"}')
 
@@ -74,12 +82,10 @@ for task_name in "${TASKS[@]}"; do
 import json, sys
 try:
     data = json.load(sys.stdin)
-    # Try common response fields
     for key in ['text', 'content', 'message', 'response', 'result']:
         if key in data:
             print(data[key])
             sys.exit(0)
-    # Fallback: dump the whole thing
     print(json.dumps(data, indent=2))
 except:
     print(sys.stdin.read())
@@ -98,7 +104,6 @@ except:
     fi
   fi
 
-  # Score (deterministic check result for now; LLM judge can be added)
   SCORE="$CHECK_SCORE"
 
   # Save score
@@ -121,21 +126,16 @@ EOF
   fi
   SUM_SCORE=$(echo "$SUM_SCORE + $SCORE" | bc)
 
-  # Add to JSON array
   [ "$TOTAL" -gt 1 ] && RESULTS_JSON+=","
   RESULTS_JSON+="{\"task\":\"$task_name\",\"score\":$SCORE}"
 done
 
 RESULTS_JSON+="]"
-
-# Calculate average
 AVG_SCORE=$(echo "scale=2; $SUM_SCORE / $TOTAL" | bc)
 
-# Write summary
 cat > "$RESULTS_DIR/latest.json" <<EOF
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "profile": "$PROFILE",
   "total": $TOTAL,
   "passed": $PASSED,
   "avg_score": $AVG_SCORE,

@@ -69,9 +69,10 @@ The meta-agent (Claude Code with the gauntlet persona) runs this loop autonomous
 
 ### Prerequisites
 
-- [OpenClaw](https://openclaw.ai) installed (`openclaw` CLI available)
-- [Claude Code](https://claude.ai/code) installed (`claude` CLI available)
+- [OpenClaw](https://openclaw.ai) installed (Docker image or `openclaw` CLI)
+- [Claude Code](https://claude.ai/code) installed (`claude` CLI) — for the meta-agent optimization loop
 - An Anthropic API key
+- Docker (recommended) or local OpenClaw installation
 
 ### 1. Clone the Gauntlet
 
@@ -80,46 +81,62 @@ git clone https://github.com/cgraves09/gauntlet.git
 cd gauntlet
 ```
 
-### 2. Set Up an Isolated OpenClaw Profile
+### 2. Choose Your Mode: Docker or Local
 
-The Gauntlet runs agents on an isolated profile so it never touches your production fleet.
+#### Option A: Docker (Recommended)
+
+Everything runs in an isolated container. No profile setup needed.
 
 ```bash
-# Create a new profile with its own gateway
+# 1. Configure your API key
+cp .env.example .env
+# Edit .env — add your ANTHROPIC_API_KEY
+
+# 2. Add your agent workspace
+mkdir -p workspace
+# Copy your agent's SOUL.md, skills/, knowledge/ into workspace/
+
+# 3. Start the container
+docker compose up -d
+
+# 4. Run the task suite
+docker compose exec gauntlet /gauntlet/scripts/run-suite.sh
+
+# 5. Debug a single task
+docker compose exec gauntlet /gauntlet/scripts/run-task.sh linkedin-hook
+
+# 6. View results (mounted back to your host)
+cat results/latest.json
+
+# 7. Stop when done
+docker compose down
+```
+
+The workspace, tasks, and results are all mounted as volumes — changes you make on the host are reflected in the container and vice versa.
+
+#### Option B: Local (OpenClaw Profile)
+
+Runs on your machine using an isolated OpenClaw profile.
+
+```bash
+# 1. Create a new profile with its own gateway
 openclaw --profile gauntlet configure
 
-# Install and start the gateway on a dedicated port
+# 2. Install and start the gateway on a dedicated port
 openclaw --profile gauntlet gateway install --port 19701
 openclaw --profile gauntlet gateway start
 
-# Verify it's running
+# 3. Install your agent workspace
+cp -r workspace/ ~/.openclaw/workspace-gauntlet/
+
+# 4. Run the task suite
+./scripts/run-suite.sh
+
+# 5. Verify
 openclaw --profile gauntlet health
 ```
 
-### 3. Install Your Agent
-
-Copy your agent's workspace files into the `workspace/` directory:
-
-```bash
-# If starting from an existing agent
-cp -r ~/.openclaw/workspace-my-agent/* workspace/
-
-# Or create workspace/ with your SOUL.md, skills/, knowledge/, etc.
-mkdir -p workspace/{skills,knowledge}
-```
-
-Then symlink or copy the workspace to the profile:
-
-```bash
-# Point the gauntlet profile to use workspace/ as its workspace
-# Option A: Copy
-cp -r workspace/ ~/.openclaw/workspace-gauntlet/
-
-# Option B: Symlink (changes in workspace/ are live)
-ln -sf "$(pwd)/workspace" ~/.openclaw/workspace-gauntlet
-```
-
-### 4. Write Tasks
+### 3. Write Tasks
 
 Create task directories in `tasks/`:
 
