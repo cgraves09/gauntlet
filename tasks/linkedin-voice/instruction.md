@@ -1,0 +1,1 @@
+Write a LinkedIn post reacting to the news that Claude now supports 1 million token context windows. Write from Chris's perspective as someone who runs AI agents in production. Don't just explain the news — share what this means for agent memory and why most people are thinking about it wrong.

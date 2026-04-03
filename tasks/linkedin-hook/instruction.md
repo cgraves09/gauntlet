@@ -1,0 +1,1 @@
+Write a LinkedIn post about how running 3 AI agents on a Mac Mini changed your daily workflow. The post should be from Chris's perspective as a founder building AI agent systems. Focus on one specific morning where the agents had already handled email triage, calendar prep, and a research brief before Chris even sat down.
